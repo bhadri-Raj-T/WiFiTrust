@@ -1,0 +1,150 @@
+﻿WiFiTrustFusion M2.6 Session Collector Validation
+
+Date:
+2026-10-11 15:01:43 +05:30
+
+Device:
+Samsung SM-J710F
+
+Android:
+8.1.0
+
+API:
+27
+
+Milestone:
+M2_SESSION_COLLECTOR
+
+
+SESSION TEST A
+
+Session ID:
+NOT_RECORDED_MANUALLY
+
+Development Interval:
+35 seconds
+
+Completed Scans:
+3
+
+
+SCAN A1
+
+Request:
+REQ_000001
+
+Result Count:
+10
+
+FIRST_SEEN:
+10
+
+ADVANCED:
+0
+
+REPEATED:
+0
+
+REGRESSED:
+0
+
+UNTRACKABLE:
+0
+
+Seen After Request:
+10/10
+
+
+SCAN A2
+
+Request:
+REQ_000002
+
+Result Count:
+8
+
+FIRST_SEEN:
+1
+
+ADVANCED:
+7
+
+REPEATED:
+0
+
+REGRESSED:
+0
+
+UNTRACKABLE:
+0
+
+Seen After Request:
+8/8
+
+
+SCAN A3
+
+Request:
+REQ_000003
+
+Result Count:
+12
+
+FIRST_SEEN:
+4
+
+ADVANCED:
+8
+
+REPEATED:
+0
+
+REGRESSED:
+0
+
+UNTRACKABLE:
+0
+
+Seen After Request:
+12/12
+
+
+Session A Stop Reason:
+USER_STOP
+
+
+SESSION TEST B
+
+Session ID:
+J7_M2DEV_20261011T092640Z_EBB4
+
+Completed Scans Before Stop:
+1
+
+Stop Reason:
+USER_STOP
+
+Wait After Stop:
+45 seconds
+
+Additional Request After Stop:
+NO
+
+
+PRIVACY
+
+Raw SSIDs committed:
+NO
+
+Raw BSSIDs committed:
+NO
+
+Persistent Evidence Export:
+NOT IMPLEMENTED
+
+WFAI:
+NOT IMPLEMENTED
+
+Risk Scoring:
+NOT IMPLEMENTED
+

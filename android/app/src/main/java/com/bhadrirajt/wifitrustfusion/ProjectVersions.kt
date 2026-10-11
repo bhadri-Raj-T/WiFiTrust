@@ -2,7 +2,7 @@
 
 object ProjectVersions {
 
-    const val MILESTONE = "M2_FRESHNESS_ENGINE"
+    const val MILESTONE = "M2_SESSION_COLLECTOR"
 
     /*
      * These are development identifiers only.
@@ -20,4 +20,5 @@ object ProjectVersions {
     const val CROWD_VERSION = "NOT_IMPLEMENTED"
     const val FUSION_VERSION = "NOT_IMPLEMENTED"
 }
+
 

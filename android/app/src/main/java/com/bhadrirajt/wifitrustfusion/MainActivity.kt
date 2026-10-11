@@ -16,12 +16,19 @@ import com.bhadrirajt.wifitrustfusion.wifi.model.WifiObservation
 import com.bhadrirajt.wifitrustfusion.wifi.permission.PermissionCoordinator
 import com.bhadrirajt.wifitrustfusion.wifi.scanner.WifiScanBatch
 import com.bhadrirajt.wifitrustfusion.wifi.scanner.WifiScanCollector
+import com.bhadrirajt.wifitrustfusion.wifi.session.CollectorSessionController
 import java.time.Instant
-import java.util.UUID
 
 class MainActivity :
     AppCompatActivity(),
-    WifiScanCollector.Listener {
+    WifiScanCollector.Listener,
+    CollectorSessionController.Listener {
+
+    companion object {
+
+        private const val DEVICE_ALIAS =
+            "J7"
+    }
 
     private lateinit var permissionCoordinator:
         PermissionCoordinator
@@ -29,10 +36,16 @@ class MainActivity :
     private lateinit var scanCollector:
         WifiScanCollector
 
+    private lateinit var sessionController:
+        CollectorSessionController
+
     private val freshnessEngine =
         WifiFreshnessEngine()
 
     private lateinit var diagnosticText:
+        TextView
+
+    private lateinit var sessionText:
         TextView
 
     private lateinit var scanStatusText:
@@ -41,15 +54,38 @@ class MainActivity :
     private lateinit var scanResultsText:
         TextView
 
-    private lateinit var runScanButton:
+    private lateinit var startSessionButton:
         Button
 
-    private val developmentSessionId =
-        "M2DEV_" +
-            UUID.randomUUID()
-                .toString()
-                .take(8)
-                .uppercase()
+    private lateinit var stopSessionButton:
+        Button
+
+    private lateinit var singleScanButton:
+        Button
+
+    private var latestRequestId:
+        String? = null
+
+    private var latestResultCount =
+        0
+
+    private var latestFirstSeen =
+        0
+
+    private var latestAdvanced =
+        0
+
+    private var latestRepeated =
+        0
+
+    private var latestRegressed =
+        0
+
+    private var latestUntrackable =
+        0
+
+    private var latestSeenAfterRequest =
+        0
 
     private val locationPermissionLauncher =
         registerForActivityResult(
@@ -62,6 +98,7 @@ class MainActivity :
     override fun onCreate(
         savedInstanceState: Bundle?
     ) {
+
         super.onCreate(
             savedInstanceState
         )
@@ -77,15 +114,28 @@ class MainActivity :
 
         scanCollector =
             WifiScanCollector(
-                context = this,
+                context =
+                    this,
                 permissionCoordinator =
                     permissionCoordinator,
-                listener = this
+                listener =
+                    this
+            )
+
+        sessionController =
+            CollectorSessionController(
+                listener =
+                    this
             )
 
         diagnosticText =
             findViewById(
                 R.id.textDiagnostics
+            )
+
+        sessionText =
+            findViewById(
+                R.id.textSession
             )
 
         scanStatusText =
@@ -98,7 +148,17 @@ class MainActivity :
                 R.id.textScanResults
             )
 
-        runScanButton =
+        startSessionButton =
+            findViewById(
+                R.id.buttonStartSession
+            )
+
+        stopSessionButton =
+            findViewById(
+                R.id.buttonStopSession
+            )
+
+        singleScanButton =
             findViewById(
                 R.id.buttonRunSingleScan
             )
@@ -106,45 +166,79 @@ class MainActivity :
         findViewById<Button>(
             R.id.buttonRequestPermission
         ).setOnClickListener {
+
             requestCollectorPermissions()
         }
 
         findViewById<Button>(
             R.id.buttonLocationSettings
         ).setOnClickListener {
+
             openLocationSettings()
         }
 
         findViewById<Button>(
             R.id.buttonRefresh
         ).setOnClickListener {
+
             renderDiagnostics()
+            renderSessionStatus()
         }
 
-        runScanButton.setOnClickListener {
-            runSingleScan()
-        }
+        singleScanButton
+            .setOnClickListener {
+
+                runDevelopmentSingleScan()
+            }
+
+        startSessionButton
+            .setOnClickListener {
+
+                startCollectorSession()
+            }
+
+        stopSessionButton
+            .setOnClickListener {
+
+                stopCollectorSession()
+            }
 
         renderDiagnostics()
+        renderSessionStatus()
+        updateButtons()
     }
 
     override fun onStart() {
+
         super.onStart()
 
         scanCollector.register()
     }
 
     override fun onResume() {
+
         super.onResume()
 
         if (
             ::permissionCoordinator.isInitialized
         ) {
             renderDiagnostics()
+            renderSessionStatus()
         }
     }
 
     override fun onStop() {
+
+        if (
+            ::sessionController.isInitialized &&
+            sessionController.isRunning()
+        ) {
+            sessionController.stopSession(
+                reason =
+                    "ACTIVITY_LEFT_FOREGROUND"
+            )
+        }
+
         if (
             ::scanCollector.isInitialized
         ) {
@@ -154,13 +248,26 @@ class MainActivity :
         super.onStop()
     }
 
+    override fun onDestroy() {
+
+        if (
+            ::sessionController.isInitialized
+        ) {
+            sessionController.destroy()
+        }
+
+        super.onDestroy()
+    }
+
     private fun requestCollectorPermissions() {
+
         val snapshot =
             permissionCoordinator.snapshot()
 
         if (
             snapshot.fineLocationGranted
         ) {
+
             Toast.makeText(
                 this,
                 "Required location permission is already granted.",
@@ -179,14 +286,18 @@ class MainActivity :
     }
 
     private fun openLocationSettings() {
+
         try {
+
             startActivity(
                 Intent(
                     Settings
                         .ACTION_LOCATION_SOURCE_SETTINGS
                 )
             )
+
         } catch (_: Exception) {
+
             Toast.makeText(
                 this,
                 "Unable to open Location settings.",
@@ -195,23 +306,226 @@ class MainActivity :
         }
     }
 
-    private fun runSingleScan() {
+    private fun prerequisitesReady():
+        Boolean {
+
+        val permission =
+            permissionCoordinator.snapshot()
+
+        return permission
+            .readyForWifiCollection &&
+            scanCollector.isWifiEnabled()
+    }
+
+    private fun runDevelopmentSingleScan() {
+
+        if (
+            sessionController.isRunning()
+        ) {
+
+            Toast.makeText(
+                this,
+                "Stop the running session before using manual single-scan mode.",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        if (
+            !prerequisitesReady()
+        ) {
+
+            renderDiagnostics()
+
+            Toast.makeText(
+                this,
+                "Collector prerequisites are not ready.",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
         scanResultsText.text =
-            "Waiting for scan result..."
+            "Waiting for manual scan..."
 
         scanCollector.requestSingleScan(
             sessionId =
-                developmentSessionId,
+                "M2_MANUAL",
             requestedIntervalMs =
                 0L
         )
 
-        updateScanButton()
+        updateButtons()
+    }
+
+    private fun startCollectorSession() {
+
+        if (
+            !prerequisitesReady()
+        ) {
+
+            renderDiagnostics()
+
+            Toast.makeText(
+                this,
+                "Collector prerequisites are not ready.",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        freshnessEngine.reset()
+
+        resetLatestSummary()
+
+        sessionController.startSession(
+            deviceAlias =
+                DEVICE_ALIAS,
+            intervalMs =
+                CollectorSessionController
+                    .DEFAULT_DEV_INTERVAL_MS
+        )
+
+        renderSessionStatus()
+        updateButtons()
+    }
+
+    private fun stopCollectorSession() {
+
+        if (
+            !sessionController.isRunning()
+        ) {
+            return
+        }
+
+        sessionController.stopSession(
+            reason =
+                "USER_STOP"
+        )
+
+        renderSessionStatus()
+        updateButtons()
+    }
+
+    override fun onSessionStarted(
+        sessionId: String,
+        intervalMs: Long
+    ) {
+
+        runOnUiThread {
+
+            sessionText.text =
+                buildString {
+
+                    appendLine(
+                        "SESSION RUNNING"
+                    )
+
+                    appendLine(
+                        "Session: $sessionId"
+                    )
+
+                    appendLine(
+                        "Device alias: $DEVICE_ALIAS"
+                    )
+
+                    appendLine(
+                        "Development interval: ${intervalMs / 1_000L} s"
+                    )
+
+                    appendLine(
+                        "Completed scans: 0"
+                    )
+                }
+
+            updateButtons()
+        }
+    }
+
+    override fun onScanDue(
+        sessionId: String,
+        intervalMs: Long
+    ) {
+
+        runOnUiThread {
+
+            if (
+                scanCollector
+                    .isRequestInProgress()
+            ) {
+
+                onSessionStatus(
+                    "Scan due but another request is still in progress."
+                )
+
+                return@runOnUiThread
+            }
+
+            scanCollector.requestSingleScan(
+                sessionId =
+                    sessionId,
+                requestedIntervalMs =
+                    intervalMs
+            )
+
+            updateButtons()
+        }
+    }
+
+    override fun onSessionStopped(
+        sessionId: String,
+        completedScanCount: Int,
+        reason: String
+    ) {
+
+        runOnUiThread {
+
+            sessionText.text =
+                buildString {
+
+                    appendLine(
+                        "SESSION STOPPED"
+                    )
+
+                    appendLine(
+                        "Session: $sessionId"
+                    )
+
+                    appendLine(
+                        "Completed scans: $completedScanCount"
+                    )
+
+                    appendLine(
+                        "Stop reason: $reason"
+                    )
+                }
+
+            updateButtons()
+        }
+    }
+
+    override fun onSessionStatus(
+        message: String
+    ) {
+
+        runOnUiThread {
+
+            scanStatusText.text =
+                "Session status:\n$message"
+
+            renderSessionStatus()
+
+            updateButtons()
+        }
     }
 
     override fun onScanCompleted(
         batch: WifiScanBatch
     ) {
+
         runOnUiThread {
 
             val analyzedObservations =
@@ -236,21 +550,33 @@ class MainActivity :
                     analyzedObservations
             )
 
-            renderDiagnostics()
+            if (
+                sessionController.isRunning() &&
+                batch.request.sessionId ==
+                    sessionController
+                        .getCurrentSessionId()
+            ) {
 
-            updateScanButton()
+                sessionController
+                    .notifyScanCompleted()
+            }
+
+            renderDiagnostics()
+            renderSessionStatus()
+            updateButtons()
         }
     }
 
     override fun onCollectorStatus(
         message: String
     ) {
+
         runOnUiThread {
 
             scanStatusText.text =
                 "Collector status:\n$message"
 
-            updateScanButton()
+            updateButtons()
         }
     }
 
@@ -258,40 +584,47 @@ class MainActivity :
         batch: WifiScanBatch,
         observations: List<WifiObservation>
     ) {
+
         val request =
             batch.request
 
-        val firstSeenCount =
+        latestRequestId =
+            request.requestId
+
+        latestResultCount =
+            observations.size
+
+        latestFirstSeen =
             observations.count {
                 it.timestampState ==
                     TimestampState.FIRST_SEEN
             }
 
-        val advancedCount =
+        latestAdvanced =
             observations.count {
                 it.timestampState ==
                     TimestampState.ADVANCED
             }
 
-        val repeatedCount =
+        latestRepeated =
             observations.count {
                 it.timestampState ==
                     TimestampState.REPEATED
             }
 
-        val regressedCount =
+        latestRegressed =
             observations.count {
                 it.timestampState ==
                     TimestampState.REGRESSED
             }
 
-        val untrackableCount =
+        latestUntrackable =
             observations.count {
                 it.timestampState ==
                     TimestampState.UNTRACKABLE
             }
 
-        val seenAfterRequestCount =
+        latestSeenAfterRequest =
             observations.count {
                 it.seenAfterRequest == true
             }
@@ -299,7 +632,9 @@ class MainActivity :
         scanResultsText.text =
             buildString {
 
-                appendLine("REQUEST")
+                appendLine(
+                    "LATEST REQUEST"
+                )
 
                 appendLine(
                     "Session: ${request.sessionId}"
@@ -329,14 +664,6 @@ class MainActivity :
                     "Completion: ${request.completionReason}"
                 )
 
-                if (
-                    request.failureDetail != null
-                ) {
-                    appendLine(
-                        "Detail: ${request.failureDetail}"
-                    )
-                }
-
                 appendLine()
 
                 appendLine(
@@ -344,96 +671,113 @@ class MainActivity :
                 )
 
                 appendLine(
-                    "FIRST_SEEN: $firstSeenCount"
+                    "FIRST_SEEN: $latestFirstSeen"
                 )
 
                 appendLine(
-                    "ADVANCED: $advancedCount"
+                    "ADVANCED: $latestAdvanced"
                 )
 
                 appendLine(
-                    "REPEATED: $repeatedCount"
+                    "REPEATED: $latestRepeated"
                 )
 
                 appendLine(
-                    "REGRESSED: $regressedCount"
+                    "REGRESSED: $latestRegressed"
                 )
 
                 appendLine(
-                    "UNTRACKABLE: $untrackableCount"
+                    "UNTRACKABLE: $latestUntrackable"
                 )
 
                 appendLine(
-                    "Seen after request: $seenAfterRequestCount / ${observations.size}"
+                    "Seen after request: $latestSeenAfterRequest / ${observations.size}"
                 )
 
                 appendLine()
 
                 appendLine(
-                    "OBSERVATIONS"
+                    "Privacy-safe display"
                 )
 
-                if (
-                    observations.isEmpty()
-                ) {
-                    appendLine(
-                        "No observations assigned to this request."
-                    )
-                }
-
-                observations
-                    .sortedByDescending {
-                        it.rssiDbm
-                    }
-                    .take(12)
-                    .forEachIndexed {
-                            index,
-                            observation ->
-
-                        appendLine()
-
-                        appendLine(
-                            "AP ${index + 1}"
-                        )
-
-                        appendLine(
-                            "RSSI: ${observation.rssiDbm} dBm"
-                        )
-
-                        appendLine(
-                            "Frequency: ${observation.frequencyMhz} MHz"
-                        )
-
-                        appendLine(
-                            "Channel: ${
-                                observation.channelNumber
-                                    ?: "unknown"
-                            }"
-                        )
-
-                        appendLine(
-                            "Timestamp state: ${observation.timestampState}"
-                        )
-
-                        appendLine(
-                            "Scan age: ${
-                                observation.scanAgeMs
-                                    ?.let { "$it ms" }
-                                    ?: "unknown"
-                            }"
-                        )
-
-                        appendLine(
-                            "Seen after request: ${
-                                observation.seenAfterRequest
-                                    ?: "unknown"
-                            }"
-                        )
-                    }
+                appendLine(
+                    "SSID/BSSID values are not displayed in M2.6 diagnostics."
+                )
             }
     }
 
+    private fun renderSessionStatus() {
+
+        if (
+            !::sessionController.isInitialized
+        ) {
+            return
+        }
+
+        if (
+            sessionController.isRunning()
+        ) {
+
+            sessionText.text =
+                buildString {
+
+                    appendLine(
+                        "SESSION RUNNING"
+                    )
+
+                    appendLine(
+                        "Session: ${
+                            sessionController
+                                .getCurrentSessionId()
+                        }"
+                    )
+
+                    appendLine(
+                        "Device alias: $DEVICE_ALIAS"
+                    )
+
+                    appendLine(
+                        "Development interval: ${
+                            sessionController
+                                .getIntervalMs() /
+                                1_000L
+                        } s"
+                    )
+
+                    appendLine(
+                        "Completed scans: ${
+                            sessionController
+                                .getCompletedScanCount()
+                        }"
+                    )
+
+                    if (
+                        latestRequestId != null
+                    ) {
+
+                        appendLine(
+                            "Latest request: $latestRequestId"
+                        )
+
+                        appendLine(
+                            "Latest result count: $latestResultCount"
+                        )
+                    }
+                }
+
+        } else if (
+            sessionText.text
+                .toString()
+                .isBlank()
+        ) {
+
+            sessionText.text =
+                "SESSION IDLE"
+        }
+    }
+
     private fun renderDiagnostics() {
+
         val permission =
             permissionCoordinator.snapshot()
 
@@ -441,20 +785,28 @@ class MainActivity :
             if (
                 ::scanCollector.isInitialized
             ) {
-                scanCollector.isWifiEnabled()
+                scanCollector
+                    .isWifiEnabled()
             } else {
                 false
             }
 
         val ready =
-            permission.readyForWifiCollection &&
+            permission
+                .readyForWifiCollection &&
                 wifiEnabled
 
         diagnosticText.text =
             buildString {
 
-                appendLine("PROJECT")
-                appendLine("WiFiTrustFusion")
+                appendLine(
+                    "PROJECT"
+                )
+
+                appendLine(
+                    "WiFiTrustFusion"
+                )
+
                 appendLine()
 
                 appendLine(
@@ -506,35 +858,27 @@ class MainActivity :
                 appendLine()
 
                 appendLine(
-                    "M2.5 BOUNDARY"
+                    "M2.6 BOUNDARY"
                 )
 
                 appendLine(
-                    "Single Wi-Fi scan: IMPLEMENTED"
+                    "Session lifecycle: IMPLEMENTED"
                 )
 
                 appendLine(
-                    "Raw observations: IMPLEMENTED"
+                    "Repeated acquisition: IMPLEMENTED"
                 )
 
                 appendLine(
-                    "Timestamp freshness: IMPLEMENTED"
+                    "Freshness engine: IMPLEMENTED"
                 )
 
                 appendLine(
-                    "Scan age: IMPLEMENTED"
+                    "Persistent evidence export: NOT IMPLEMENTED"
                 )
 
                 appendLine(
-                    "seenAfterRequest: IMPLEMENTED"
-                )
-
-                appendLine(
-                    "Repeated acquisition: NOT IMPLEMENTED"
-                )
-
-                appendLine(
-                    "Persistent logging: NOT IMPLEMENTED"
+                    "Room database: NOT IMPLEMENTED"
                 )
 
                 appendLine(
@@ -542,18 +886,60 @@ class MainActivity :
                 )
             }
 
-        updateScanButton()
+        updateButtons()
     }
 
-    private fun updateScanButton() {
+    private fun resetLatestSummary() {
+
+        latestRequestId =
+            null
+
+        latestResultCount =
+            0
+
+        latestFirstSeen =
+            0
+
+        latestAdvanced =
+            0
+
+        latestRepeated =
+            0
+
+        latestRegressed =
+            0
+
+        latestUntrackable =
+            0
+
+        latestSeenAfterRequest =
+            0
+    }
+
+    private fun updateButtons() {
+
         if (
-            !::runScanButton.isInitialized
+            !::startSessionButton.isInitialized
         ) {
             return
         }
 
-        runScanButton.isEnabled =
-            !scanCollector
+        val sessionRunning =
+            sessionController.isRunning()
+
+        val scanRunning =
+            scanCollector
                 .isRequestInProgress()
+
+        startSessionButton.isEnabled =
+            !sessionRunning &&
+                !scanRunning
+
+        stopSessionButton.isEnabled =
+            sessionRunning
+
+        singleScanButton.isEnabled =
+            !sessionRunning &&
+                !scanRunning
     }
 }
