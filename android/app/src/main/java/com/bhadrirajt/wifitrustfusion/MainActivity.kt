@@ -1,6 +1,7 @@
 ﻿package com.bhadrirajt.wifitrustfusion
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.provider.Settings
@@ -11,12 +12,18 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.bhadrirajt.wifitrustfusion.core.ProjectVersions
 import com.bhadrirajt.wifitrustfusion.wifi.freshness.WifiFreshnessEngine
+import com.bhadrirajt.wifitrustfusion.wifi.logging.ResearchSessionLogger
+import com.bhadrirajt.wifitrustfusion.wifi.model.CollectorEventRecord
+import com.bhadrirajt.wifitrustfusion.wifi.model.CollectorEventType
+import com.bhadrirajt.wifitrustfusion.wifi.model.CollectorSessionMetadata
+import com.bhadrirajt.wifitrustfusion.wifi.model.ScanCompletionReason
 import com.bhadrirajt.wifitrustfusion.wifi.model.TimestampState
 import com.bhadrirajt.wifitrustfusion.wifi.model.WifiObservation
 import com.bhadrirajt.wifitrustfusion.wifi.permission.PermissionCoordinator
 import com.bhadrirajt.wifitrustfusion.wifi.scanner.WifiScanBatch
 import com.bhadrirajt.wifitrustfusion.wifi.scanner.WifiScanCollector
 import com.bhadrirajt.wifitrustfusion.wifi.session.CollectorSessionController
+import java.io.File
 import java.time.Instant
 
 class MainActivity :
@@ -38,6 +45,9 @@ class MainActivity :
 
     private lateinit var sessionController:
         CollectorSessionController
+
+    private lateinit var researchLogger:
+        ResearchSessionLogger
 
     private val freshnessEngine =
         WifiFreshnessEngine()
@@ -87,6 +97,15 @@ class MainActivity :
     private var latestSeenAfterRequest =
         0
 
+    private var eventCounter =
+        0L
+
+    private var sessionLoggingReady =
+        false
+
+    private var currentEvidenceDirectory:
+        File? = null
+
     private val locationPermissionLauncher =
         registerForActivityResult(
             ActivityResultContracts
@@ -126,6 +145,11 @@ class MainActivity :
             CollectorSessionController(
                 listener =
                     this
+            )
+
+        researchLogger =
+            ResearchSessionLogger(
+                this
             )
 
         diagnosticText =
@@ -229,6 +253,16 @@ class MainActivity :
 
     override fun onStop() {
 
+        /*
+         * Finish any pending request first while the logger
+         * and session are still active.
+         */
+        if (
+            ::scanCollector.isInitialized
+        ) {
+            scanCollector.unregister()
+        }
+
         if (
             ::sessionController.isInitialized &&
             sessionController.isRunning()
@@ -239,16 +273,16 @@ class MainActivity :
             )
         }
 
-        if (
-            ::scanCollector.isInitialized
-        ) {
-            scanCollector.unregister()
-        }
-
         super.onStop()
     }
 
     override fun onDestroy() {
+
+        if (
+            ::researchLogger.isInitialized
+        ) {
+            researchLogger.close()
+        }
 
         if (
             ::sessionController.isInitialized
@@ -381,6 +415,15 @@ class MainActivity :
 
         resetLatestSummary()
 
+        eventCounter =
+            0L
+
+        sessionLoggingReady =
+            false
+
+        currentEvidenceDirectory =
+            null
+
         sessionController.startSession(
             deviceAlias =
                 DEVICE_ALIAS,
@@ -417,30 +460,100 @@ class MainActivity :
 
         runOnUiThread {
 
-            sessionText.text =
-                buildString {
+            val metadata =
+                CollectorSessionMetadata(
+                    sessionId =
+                        sessionId,
 
-                    appendLine(
-                        "SESSION RUNNING"
-                    )
+                    collectorVersion =
+                        ProjectVersions
+                            .COLLECTOR_VERSION,
 
-                    appendLine(
-                        "Session: $sessionId"
-                    )
+                    protocolVersion =
+                        ProjectVersions
+                            .PROTOCOL_VERSION,
 
-                    appendLine(
-                        "Device alias: $DEVICE_ALIAS"
-                    )
+                    observationSchemaVersion =
+                        ProjectVersions
+                            .OBS_SCHEMA_VERSION,
 
-                    appendLine(
-                        "Development interval: ${intervalMs / 1_000L} s"
-                    )
+                    appVersionName =
+                        getAppVersionName(),
 
-                    appendLine(
-                        "Completed scans: 0"
-                    )
-                }
+                    appVersionCode =
+                        getAppVersionCode(),
 
+                    deviceAlias =
+                        DEVICE_ALIAS,
+
+                    manufacturer =
+                        Build.MANUFACTURER,
+
+                    model =
+                        Build.MODEL,
+
+                    deviceCodename =
+                        Build.DEVICE,
+
+                    androidRelease =
+                        Build.VERSION.RELEASE,
+
+                    apiLevel =
+                        Build.VERSION.SDK_INT,
+
+                    startedUtcIso =
+                        Instant.now()
+                            .toString(),
+
+                    startedElapsedUs =
+                        elapsedRealtimeUs(),
+
+                    requestedScanIntervalMs =
+                        intervalMs,
+
+                    runLabel =
+                        "M2.7_DEV"
+                )
+
+            try {
+
+                currentEvidenceDirectory =
+                    researchLogger
+                        .startSession(
+                            metadata
+                        )
+
+                sessionLoggingReady =
+                    true
+
+                logEvent(
+                    eventType =
+                        CollectorEventType
+                            .SESSION_STARTED,
+                    requestId =
+                        null,
+                    detail =
+                        "Persistent session evidence initialized."
+                )
+
+            } catch (
+                exception: Exception
+            ) {
+
+                sessionLoggingReady =
+                    false
+
+                scanStatusText.text =
+                    "LOGGER START ERROR:\n" +
+                        (
+                            exception.message
+                                ?: exception
+                                    .javaClass
+                                    .simpleName
+                        )
+            }
+
+            renderSessionStatus()
             updateButtons()
         }
     }
@@ -453,6 +566,23 @@ class MainActivity :
         runOnUiThread {
 
             if (
+                !sessionLoggingReady
+            ) {
+
+                if (
+                    sessionController.isRunning()
+                ) {
+                    sessionController
+                        .stopSession(
+                            reason =
+                                "LOGGER_START_FAILED"
+                        )
+                }
+
+                return@runOnUiThread
+            }
+
+            if (
                 scanCollector
                     .isRequestInProgress()
             ) {
@@ -463,6 +593,16 @@ class MainActivity :
 
                 return@runOnUiThread
             }
+
+            logEventSafely(
+                eventType =
+                    CollectorEventType
+                        .SCAN_REQUEST_CREATED,
+                requestId =
+                    null,
+                detail =
+                    "Scheduled scan became due."
+            )
 
             scanCollector.requestSingleScan(
                 sessionId =
@@ -483,6 +623,50 @@ class MainActivity :
 
         runOnUiThread {
 
+            if (
+                sessionLoggingReady
+            ) {
+
+                try {
+
+                    logEvent(
+                        eventType =
+                            CollectorEventType
+                                .SESSION_STOPPED,
+                        requestId =
+                            null,
+                        detail =
+                            "reason=$reason; completedScans=$completedScanCount"
+                    )
+
+                    researchLogger
+                        .markSessionComplete(
+                            stopReason =
+                                reason,
+                            completedScanCount =
+                                completedScanCount
+                        )
+
+                } catch (
+                    exception: Exception
+                ) {
+
+                    scanStatusText.text =
+                        "LOGGER CLOSE ERROR:\n" +
+                            (
+                                exception.message
+                                    ?: exception
+                                        .javaClass
+                                        .simpleName
+                            )
+                }
+            }
+
+            researchLogger.close()
+
+            sessionLoggingReady =
+                false
+
             sessionText.text =
                 buildString {
 
@@ -500,6 +684,18 @@ class MainActivity :
 
                     appendLine(
                         "Stop reason: $reason"
+                    )
+
+                    appendLine()
+
+                    appendLine(
+                        "Evidence:"
+                    )
+
+                    appendLine(
+                        currentEvidenceDirectory
+                            ?.absolutePath
+                            ?: "unavailable"
                     )
                 }
 
@@ -538,9 +734,7 @@ class MainActivity :
                             .toString(),
 
                     observedElapsedUs =
-                        SystemClock
-                            .elapsedRealtimeNanos() /
-                            1_000L
+                        elapsedRealtimeUs()
                 )
 
             renderBatch(
@@ -550,11 +744,71 @@ class MainActivity :
                     analyzedObservations
             )
 
-            if (
+            val activeSessionId =
+                sessionController
+                    .getCurrentSessionId()
+
+            val belongsToActiveSession =
                 sessionController.isRunning() &&
-                batch.request.sessionId ==
-                    sessionController
-                        .getCurrentSessionId()
+                    activeSessionId != null &&
+                    batch.request.sessionId ==
+                        activeSessionId
+
+            if (
+                belongsToActiveSession &&
+                sessionLoggingReady
+            ) {
+
+                try {
+
+                    researchLogger
+                        .logRequest(
+                            batch.request
+                        )
+
+                    researchLogger
+                        .logObservations(
+                            analyzedObservations
+                        )
+
+                    logCompletionEvent(
+                        batch
+                    )
+
+                } catch (
+                    exception: Exception
+                ) {
+
+                    scanStatusText.text =
+                        "LOGGER WRITE ERROR:\n" +
+                            (
+                                exception.message
+                                    ?: exception
+                                        .javaClass
+                                        .simpleName
+                            )
+
+                    sessionLoggingReady =
+                        false
+
+                    if (
+                        sessionController
+                            .isRunning()
+                    ) {
+                        sessionController
+                            .stopSession(
+                                reason =
+                                    "LOGGER_WRITE_FAILED"
+                            )
+                    }
+
+                    return@runOnUiThread
+                }
+            }
+
+            if (
+                belongsToActiveSession &&
+                sessionController.isRunning()
             ) {
 
                 sessionController
@@ -578,6 +832,154 @@ class MainActivity :
 
             updateButtons()
         }
+    }
+
+    private fun logCompletionEvent(
+        batch: WifiScanBatch
+    ) {
+
+        val request =
+            batch.request
+
+        val eventType =
+            when (
+                request.completionReason
+            ) {
+
+                ScanCompletionReason
+                    .BROADCAST_RESULTS_UPDATED,
+
+                ScanCompletionReason
+                    .BROADCAST_RESULTS_NOT_UPDATED ->
+
+                    CollectorEventType
+                        .SCAN_BROADCAST_RECEIVED
+
+                ScanCompletionReason
+                    .SCAN_TIMEOUT ->
+
+                    CollectorEventType
+                        .SCAN_TIMEOUT
+
+                ScanCompletionReason
+                    .PERMISSION_MISSING,
+
+                ScanCompletionReason
+                    .WIFI_DISABLED,
+
+                ScanCompletionReason
+                    .LOCATION_DISABLED ->
+
+                    CollectorEventType
+                        .PREREQUISITE_BLOCKED
+
+                ScanCompletionReason
+                    .SECURITY_EXCEPTION,
+
+                ScanCompletionReason
+                    .COLLECTOR_ERROR ->
+
+                    CollectorEventType
+                        .COLLECTOR_ERROR
+
+                else ->
+
+                    CollectorEventType
+                        .START_SCAN_CALLED
+            }
+
+        logEvent(
+            eventType =
+                eventType,
+            requestId =
+                request.requestId,
+            detail =
+                "completion=${request.completionReason}; " +
+                    "resultCount=${request.resultCount}; " +
+                    "resultsUpdated=${request.resultsUpdated}"
+        )
+    }
+
+    private fun logEventSafely(
+        eventType: CollectorEventType,
+        requestId: String?,
+        detail: String?
+    ) {
+
+        if (
+            !sessionLoggingReady
+        ) {
+            return
+        }
+
+        try {
+
+            logEvent(
+                eventType =
+                    eventType,
+                requestId =
+                    requestId,
+                detail =
+                    detail
+            )
+
+        } catch (
+            exception: Exception
+        ) {
+
+            scanStatusText.text =
+                "LOGGER EVENT ERROR:\n" +
+                    (
+                        exception.message
+                            ?: exception
+                                .javaClass
+                                .simpleName
+                    )
+        }
+    }
+
+    private fun logEvent(
+        eventType: CollectorEventType,
+        requestId: String?,
+        detail: String?
+    ) {
+
+        val sessionId =
+            sessionController
+                .getCurrentSessionId()
+                ?: return
+
+        eventCounter +=
+            1L
+
+        researchLogger.logEvent(
+            CollectorEventRecord(
+                eventId =
+                    "EVT_%06d"
+                        .format(
+                            eventCounter
+                        ),
+
+                sessionId =
+                    sessionId,
+
+                eventUtcIso =
+                    Instant.now()
+                        .toString(),
+
+                eventElapsedUs =
+                    elapsedRealtimeUs(),
+
+                eventType =
+                    eventType,
+
+                requestId =
+                    requestId,
+
+                detail =
+                    detail
+            )
+        )
     }
 
     private fun renderBatch(
@@ -701,7 +1103,7 @@ class MainActivity :
                 )
 
                 appendLine(
-                    "SSID/BSSID values are not displayed in M2.6 diagnostics."
+                    "Raw SSID/BSSID values are stored only in app-specific research evidence files."
                 )
             }
     }
@@ -751,9 +1153,40 @@ class MainActivity :
                         }"
                     )
 
+                    appendLine(
+                        "Persistent logging: ${
+                            if (
+                                sessionLoggingReady
+                            ) {
+                                "ACTIVE"
+                            } else {
+                                "NOT READY"
+                            }
+                        }"
+                    )
+
+                    if (
+                        currentEvidenceDirectory !=
+                        null
+                    ) {
+
+                        appendLine()
+
+                        appendLine(
+                            "Evidence directory:"
+                        )
+
+                        appendLine(
+                            currentEvidenceDirectory
+                                ?.absolutePath
+                        )
+                    }
+
                     if (
                         latestRequestId != null
                     ) {
+
+                        appendLine()
 
                         appendLine(
                             "Latest request: $latestRequestId"
@@ -858,7 +1291,7 @@ class MainActivity :
                 appendLine()
 
                 appendLine(
-                    "M2.6 BOUNDARY"
+                    "M2.7 BOUNDARY"
                 )
 
                 appendLine(
@@ -874,11 +1307,19 @@ class MainActivity :
                 )
 
                 appendLine(
-                    "Persistent evidence export: NOT IMPLEMENTED"
+                    "Persistent evidence logging: IMPLEMENTED"
+                )
+
+                appendLine(
+                    "Clean-close marker: IMPLEMENTED"
                 )
 
                 appendLine(
                     "Room database: NOT IMPLEMENTED"
+                )
+
+                appendLine(
+                    "WFAI: NOT IMPLEMENTED"
                 )
 
                 appendLine(
@@ -942,4 +1383,50 @@ class MainActivity :
             !sessionRunning &&
                 !scanRunning
     }
+
+
+    private fun getAppVersionName():
+        String {
+
+        val packageInfo =
+            packageManager.getPackageInfo(
+                packageName,
+                0
+            )
+
+        return packageInfo.versionName
+            ?: "unknown"
+    }
+
+    private fun getAppVersionCode():
+        Long {
+
+        val packageInfo =
+            packageManager.getPackageInfo(
+                packageName,
+                0
+            )
+
+        return if (
+            Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.P
+        ) {
+
+            packageInfo.longVersionCode
+
+        } else {
+
+            @Suppress("DEPRECATION")
+            packageInfo.versionCode
+                .toLong()
+        }
+    }
+    private fun elapsedRealtimeUs():
+        Long {
+
+        return SystemClock
+            .elapsedRealtimeNanos() /
+            1_000L
+    }
 }
+

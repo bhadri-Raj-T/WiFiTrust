@@ -1,0 +1,78 @@
+﻿WiFiTrustFusion M2.7 Persistent Evidence Validation
+
+Date:
+2026-10-11 18:24:55 +05:30
+
+Device:
+Samsung SM-J710F
+
+Android:
+8.1.0
+
+API:
+27
+
+Milestone:
+M2_PERSISTENT_EVIDENCE
+
+Session:
+J7_M2DEV_20261011T094335Z_C9D4
+
+Required Files:
+metadata.csv = PASS
+requests.csv = PASS
+observations.csv = PASS
+events.csv = PASS
+session_completion.csv = PASS
+
+Request Rows:
+3
+
+Observation Rows:
+30
+
+Observations By Request:
+REQ_000001 = 11
+REQ_000002 = 11
+REQ_000003 = 8
+
+Freshness:
+FIRST_SEEN = 15
+ADVANCED = 15
+REPEATED = 0
+REGRESSED = 0
+UNTRACKABLE = 0
+
+Seen After Request:
+true = 30
+
+Request Observation Invariants:
+REQ_000001 = PASS (11 = 11)
+REQ_000002 = PASS (11 = 11)
+REQ_000003 = PASS (8 = 8)
+
+Freshness Invariant:
+PASS
+
+Event Rows:
+8
+
+Session Completion:
+stop_reason = USER_STOP
+completed_scan_count = 3
+clean_close = true
+
+Raw SSID/BSSID:
+Stored only in app-specific/private experimental evidence.
+
+Raw Data In Git:
+NO
+
+M2.7 Core Validation:
+PASS
+
+WFAI:
+NOT IMPLEMENTED
+
+Risk Scoring:
+NOT IMPLEMENTED

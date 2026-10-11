@@ -33,7 +33,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="M2.6 SESSION COLLECTOR&#10;&#10;Repeated acquisition is active. Persistent export and risk scoring are not active."
+            android:text="M2.7 PERSISTENT EVIDENCE&#10;&#10;Versioned session evidence is written to app-specific storage. Risk scoring is not active."
             android:textStyle="bold" />
 
         <Button
@@ -119,3 +119,4 @@
     </LinearLayout>
 
 </ScrollView>
+
