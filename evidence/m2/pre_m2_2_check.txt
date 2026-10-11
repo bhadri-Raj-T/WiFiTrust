@@ -1,0 +1,19 @@
+﻿=== BRANCH ===
+dev-core
+
+=== COMMITS ===
+f11c701 M2: freeze collector acquisition requirements 5da1a11 M1: establish clean Android foundation 56fe3f3 chore: initialize WiFiTrustFusion repository
+
+=== STATUS ===
+ M android/app/src/main/AndroidManifest.xml  M android/app/src/main/java/com/bhadrirajt/wifitrustfusion/MainActivity.kt  M android/app/src/main/java/com/bhadrirajt/wifitrustfusion/ProjectVersions.kt AM android/app/src/main/java/com/bhadrirajt/wifitrustfusion/wifi/permission/PermissionCoordinator.kt  M android/app/src/main/res/layout/activity_main.xml ?? evidence/m2/
+
+=== DEVICE ===
+Manufacturer: samsung
+Model: SM-J710F
+Device: j7xelte
+Android: 8.1.0
+API: 27
+Build Type: user
+
+=== APP ===
+package:/data/app/com.bhadrirajt.wifitrustfusion-SD_PIC5_6N_5YuyUMA5lVw==/base.apk

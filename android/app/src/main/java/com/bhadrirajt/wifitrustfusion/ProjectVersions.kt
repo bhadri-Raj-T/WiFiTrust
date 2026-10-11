@@ -2,7 +2,7 @@ package com.bhadrirajt.wifitrustfusion.core
 
 object ProjectVersions {
 
-    const val MILESTONE = "M1_FOUNDATION"
+    const val MILESTONE = "M2_PERMISSION_ARCHITECTURE"
 
     /*
      * These are development identifiers only.

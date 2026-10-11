@@ -25,16 +25,37 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Explainable Wi-Fi Evidence Fusion"
+            android:text="Experimental Wi-Fi Evidence Collector"
             android:textSize="16sp" />
 
         <TextView
-            android:id="@+id/textFoundationStatus"
+            android:id="@+id/textStage"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="M1 FOUNDATION ONLY&#10;&#10;No Wi-Fi acquisition or risk scoring is active in this build."
+            android:text="M2.2 PERMISSION ARCHITECTURE&#10;&#10;No Wi-Fi scans are performed in this build."
             android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/buttonRequestPermission"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Grant Wi-Fi Scan Permission" />
+
+        <Button
+            android:id="@+id/buttonLocationSettings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Open Location Settings" />
+
+        <Button
+            android:id="@+id/buttonRefresh"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Refresh Diagnostics" />
 
         <TextView
             android:id="@+id/textDiagnostics"
@@ -44,13 +65,6 @@
             android:fontFamily="monospace"
             android:textIsSelectable="true"
             android:textSize="14sp" />
-
-        <Button
-            android:id="@+id/buttonRefresh"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="Refresh Diagnostics" />
 
     </LinearLayout>
 
