@@ -1,5 +1,5 @@
 package com.bhadrirajt.wifitrustfusion
-
+import com.bhadrirajt.wifitrustfusion.core.ProjectVersions
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
@@ -8,45 +8,121 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import com.bhadrirajt.wifitrustfusion.core.ProjectVersions
 import com.bhadrirajt.wifitrustfusion.wifi.permission.PermissionCoordinator
+import com.bhadrirajt.wifitrustfusion.wifi.scanner.WifiScanBatch
+import com.bhadrirajt.wifitrustfusion.wifi.scanner.WifiScanCollector
+import java.util.UUID
 
-class MainActivity : AppCompatActivity() {
+class MainActivity :
+    AppCompatActivity(),
+    WifiScanCollector.Listener {
 
-    private lateinit var diagnosticText: TextView
-    private lateinit var permissionCoordinator: PermissionCoordinator
+    private lateinit var permissionCoordinator:
+            PermissionCoordinator
+
+    private lateinit var scanCollector:
+            WifiScanCollector
+
+    private lateinit var diagnosticText:
+            TextView
+
+    private lateinit var scanStatusText:
+            TextView
+
+    private lateinit var scanResultsText:
+            TextView
+
+    private lateinit var runScanButton:
+            Button
+
+    private val developmentSessionId =
+        "M2DEV_" +
+                UUID.randomUUID()
+                    .toString()
+                    .take(8)
+                    .uppercase()
 
     private val locationPermissionLauncher =
         registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
+            ActivityResultContracts
+                .RequestMultiplePermissions()
         ) {
             renderDiagnostics()
         }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
+        super.onCreate(
+            savedInstanceState
+        )
 
-        permissionCoordinator = PermissionCoordinator(this)
+        setContentView(
+            R.layout.activity_main
+        )
 
-        diagnosticText = findViewById(R.id.textDiagnostics)
+        permissionCoordinator =
+            PermissionCoordinator(
+                this
+            )
 
-        findViewById<Button>(R.id.buttonRequestPermission)
-            .setOnClickListener {
-                requestCollectorPermissions()
-            }
+        scanCollector =
+            WifiScanCollector(
+                context = this,
+                permissionCoordinator =
+                    permissionCoordinator,
+                listener = this
+            )
 
-        findViewById<Button>(R.id.buttonLocationSettings)
-            .setOnClickListener {
-                openLocationSettings()
-            }
+        diagnosticText =
+            findViewById(
+                R.id.textDiagnostics
+            )
 
-        findViewById<Button>(R.id.buttonRefresh)
-            .setOnClickListener {
-                renderDiagnostics()
-            }
+        scanStatusText =
+            findViewById(
+                R.id.textScanStatus
+            )
+
+        scanResultsText =
+            findViewById(
+                R.id.textScanResults
+            )
+
+        runScanButton =
+            findViewById(
+                R.id.buttonRunSingleScan
+            )
+
+        findViewById<Button>(
+            R.id.buttonRequestPermission
+        ).setOnClickListener {
+            requestCollectorPermissions()
+        }
+
+        findViewById<Button>(
+            R.id.buttonLocationSettings
+        ).setOnClickListener {
+            openLocationSettings()
+        }
+
+        findViewById<Button>(
+            R.id.buttonRefresh
+        ).setOnClickListener {
+            renderDiagnostics()
+        }
+
+        runScanButton.setOnClickListener {
+            runSingleScan()
+        }
 
         renderDiagnostics()
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        scanCollector.register()
     }
 
     override fun onResume() {
@@ -57,10 +133,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun requestCollectorPermissions() {
-        val snapshot = permissionCoordinator.snapshot()
+    override fun onStop() {
+        if (::scanCollector.isInitialized) {
+            scanCollector.unregister()
+        }
 
-        if (snapshot.fineLocationGranted) {
+        super.onStop()
+    }
+
+    private fun requestCollectorPermissions() {
+        val snapshot =
+            permissionCoordinator.snapshot()
+
+        if (
+            snapshot.fineLocationGranted
+        ) {
             Toast.makeText(
                 this,
                 "Required location permission is already granted.",
@@ -68,18 +155,23 @@ class MainActivity : AppCompatActivity() {
             ).show()
 
             renderDiagnostics()
+
             return
         }
 
         locationPermissionLauncher.launch(
-            permissionCoordinator.requiredRuntimePermissions()
+            permissionCoordinator
+                .requiredRuntimePermissions()
         )
     }
 
     private fun openLocationSettings() {
         try {
             startActivity(
-                Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                Intent(
+                    Settings
+                        .ACTION_LOCATION_SOURCE_SETTINGS
+                )
             )
         } catch (_: Exception) {
             Toast.makeText(
@@ -90,96 +182,251 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderDiagnostics() {
-        val permission = permissionCoordinator.snapshot()
+    private fun runSingleScan() {
+        scanResultsText.text =
+            "Waiting for scan result..."
 
-        val readinessLabel =
-            if (permission.readyForWifiCollection) {
-                "READY"
+        scanCollector.requestSingleScan(
+            sessionId =
+                developmentSessionId,
+            requestedIntervalMs =
+                0L
+        )
+
+        updateScanButton()
+    }
+
+    override fun onScanCompleted(
+        batch: WifiScanBatch
+    ) {
+        runOnUiThread {
+            renderBatch(
+                batch
+            )
+
+            renderDiagnostics()
+
+            updateScanButton()
+        }
+    }
+
+    override fun onCollectorStatus(
+        message: String
+    ) {
+        runOnUiThread {
+            scanStatusText.text =
+                "Collector status:\n$message"
+
+            updateScanButton()
+        }
+    }
+
+    private fun renderBatch(
+        batch: WifiScanBatch
+    ) {
+        val request =
+            batch.request
+
+        scanResultsText.text =
+            buildString {
+                appendLine(
+                    "REQUEST"
+                )
+
+                appendLine(
+                    "Session: ${request.sessionId}"
+                )
+
+                appendLine(
+                    "Request: ${request.requestId}"
+                )
+
+                appendLine(
+                    "startScan(): ${request.startScanReturned}"
+                )
+
+                appendLine(
+                    "Broadcast: ${request.broadcastReceived}"
+                )
+
+                appendLine(
+                    "Results updated: ${request.resultsUpdated}"
+                )
+
+                appendLine(
+                    "Result count: ${request.resultCount}"
+                )
+
+                appendLine(
+                    "Completion: ${request.completionReason}"
+                )
+
+                if (
+                    request.failureDetail != null
+                ) {
+                    appendLine(
+                        "Detail: ${request.failureDetail}"
+                    )
+                }
+
+                appendLine()
+
+                appendLine(
+                    "RAW OBSERVATIONS"
+                )
+
+                if (
+                    batch.observations.isEmpty()
+                ) {
+                    appendLine(
+                        "No observations assigned to this request."
+                    )
+                }
+
+                batch.observations
+                    .sortedByDescending {
+                        it.rssiDbm
+                    }
+                    .take(10)
+                    .forEachIndexed {
+                            index,
+                            observation ->
+
+                        appendLine()
+                        appendLine(
+                            "AP ${index + 1}"
+                        )
+
+                        appendLine(
+                            "SSID: ${
+                                observation.ssid
+                                    ?: "<hidden>"
+                            }"
+                        )
+
+                        appendLine(
+                            "BSSID: ${
+                                observation.bssid
+                                    ?: "<unknown>"
+                            }"
+                        )
+
+                        appendLine(
+                            "RSSI: ${
+                                observation.rssiDbm
+                            } dBm"
+                        )
+
+                        appendLine(
+                            "Frequency: ${
+                                observation.frequencyMhz
+                            } MHz"
+                        )
+
+                        appendLine(
+                            "Native timestamp: ${
+                                observation.scanTimestampUs
+                            } us"
+                        )
+                    }
+            }
+    }
+
+    private fun renderDiagnostics() {
+        val permission =
+            permissionCoordinator.snapshot()
+
+        val wifiEnabled =
+            if (::scanCollector.isInitialized) {
+                scanCollector.isWifiEnabled()
             } else {
-                "NOT READY"
+                false
             }
 
-        val diagnostics = buildString {
-            appendLine("PROJECT")
-            appendLine("WiFiTrustFusion")
-            appendLine()
+        val ready =
+            permission.readyForWifiCollection &&
+                    wifiEnabled
 
-            appendLine("IMPLEMENTATION STATUS")
-            appendLine(
-                "Milestone: ${ProjectVersions.MILESTONE}"
-            )
-            appendLine(
-                "Collector: ${ProjectVersions.COLLECTOR_VERSION}"
-            )
-            appendLine(
-                "Protocol: ${ProjectVersions.PROTOCOL_VERSION}"
-            )
-            appendLine(
-                "Observation schema: ${ProjectVersions.OBS_SCHEMA_VERSION}"
-            )
-            appendLine()
+        diagnosticText.text =
+            buildString {
+                appendLine(
+                    "PROJECT"
+                )
+                appendLine(
+                    "WiFiTrustFusion"
+                )
+                appendLine()
 
-            appendLine("PERMISSION ARCHITECTURE")
-            appendLine(
-                "Fine location: " +
-                        permission.fineLocationGranted
-            )
-            appendLine(
-                "Coarse location: " +
-                        permission.coarseLocationGranted
-            )
-            appendLine(
-                "Location services: " +
-                        permission.locationServicesEnabled
-            )
-            appendLine(
-                "Collector prerequisites: $readinessLabel"
-            )
-            appendLine(
-                "Reason: ${permission.readinessReason}"
-            )
-            appendLine()
+                appendLine(
+                    "IMPLEMENTATION STATUS"
+                )
+                appendLine(
+                    "Milestone: ${ProjectVersions.MILESTONE}"
+                )
+                appendLine(
+                    "Collector: ${ProjectVersions.COLLECTOR_VERSION}"
+                )
+                appendLine(
+                    "Protocol: ${ProjectVersions.PROTOCOL_VERSION}"
+                )
+                appendLine(
+                    "Observation schema: ${ProjectVersions.OBS_SCHEMA_VERSION}"
+                )
+                appendLine()
 
-            appendLine("SCORING MODULES")
-            appendLine(
-                "STAT: ${ProjectVersions.STAT_VERSION}"
-            )
-            appendLine(
-                "TECH: ${ProjectVersions.TECH_VERSION}"
-            )
-            appendLine(
-                "REVIEW: ${ProjectVersions.REVIEW_VERSION}"
-            )
-            appendLine(
-                "CROWD: ${ProjectVersions.CROWD_VERSION}"
-            )
-            appendLine(
-                "FUSION: ${ProjectVersions.FUSION_VERSION}"
-            )
-            appendLine()
+                appendLine(
+                    "COLLECTOR PREREQUISITES"
+                )
+                appendLine(
+                    "Fine location: ${permission.fineLocationGranted}"
+                )
+                appendLine(
+                    "Coarse location: ${permission.coarseLocationGranted}"
+                )
+                appendLine(
+                    "Location services: ${permission.locationServicesEnabled}"
+                )
+                appendLine(
+                    "Wi-Fi enabled: $wifiEnabled"
+                )
+                appendLine(
+                    "Ready: $ready"
+                )
+                appendLine()
 
-            appendLine("M2.2 BOUNDARY")
-            appendLine(
-                "Permission architecture: IMPLEMENTED"
-            )
-            appendLine(
-                "Wi-Fi acquisition: NOT IMPLEMENTED"
-            )
-            appendLine(
-                "Observation model: NOT IMPLEMENTED"
-            )
-            appendLine(
-                "Freshness engine: NOT IMPLEMENTED"
-            )
-            appendLine(
-                "Database: NOT IMPLEMENTED"
-            )
-            appendLine(
-                "Risk scoring: NOT IMPLEMENTED"
-            )
+                appendLine(
+                    "M2.4 BOUNDARY"
+                )
+                appendLine(
+                    "Single Wi-Fi scan: IMPLEMENTED"
+                )
+                appendLine(
+                    "Raw observations: IMPLEMENTED"
+                )
+                appendLine(
+                    "Freshness analysis: NOT IMPLEMENTED"
+                )
+                appendLine(
+                    "Repeated acquisition: NOT IMPLEMENTED"
+                )
+                appendLine(
+                    "Persistent logging: NOT IMPLEMENTED"
+                )
+                appendLine(
+                    "Risk scoring: NOT IMPLEMENTED"
+                )
+            }
+
+        updateScanButton()
+    }
+
+    private fun updateScanButton() {
+        if (!::runScanButton.isInitialized) {
+            return
         }
 
-        diagnosticText.text = diagnostics
+        runScanButton.isEnabled =
+            !scanCollector
+                .isRequestInProgress()
     }
 }

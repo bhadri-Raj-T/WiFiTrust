@@ -2,7 +2,7 @@ package com.bhadrirajt.wifitrustfusion.core
 
 object ProjectVersions {
 
-    const val MILESTONE = "M2_OBSERVATION_MODELS"
+    const val MILESTONE = "M2_WIFI_COLLECTOR"
 
     /*
      * These are development identifiers only.

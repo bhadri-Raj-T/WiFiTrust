@@ -33,7 +33,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="M2.2 PERMISSION ARCHITECTURE&#10;&#10;No Wi-Fi scans are performed in this build."
+            android:text="M2.4 SINGLE-SCAN COLLECTOR&#10;&#10;Freshness analysis and risk scoring are not active."
             android:textStyle="bold" />
 
         <Button
@@ -57,12 +57,37 @@
             android:layout_marginTop="8dp"
             android:text="Refresh Diagnostics" />
 
+        <Button
+            android:id="@+id/buttonRunSingleScan"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Run Single Wi-Fi Scan" />
+
         <TextView
             android:id="@+id/textDiagnostics"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:fontFamily="monospace"
+            android:textIsSelectable="true"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/textScanStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Collector status: idle"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textScanResults"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:fontFamily="monospace"
+            android:text="No scan has been requested."
             android:textIsSelectable="true"
             android:textSize="14sp" />
 

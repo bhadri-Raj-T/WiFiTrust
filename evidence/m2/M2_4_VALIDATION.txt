@@ -1,0 +1,108 @@
+﻿WiFiTrustFusion M2.4 Single-Scan Collector Validation
+
+Date:
+2026-10-11 14:02:53 +05:30
+
+Device:
+Samsung SM-J710F
+
+Android:
+8.1.0
+
+API:
+27
+
+Milestone:
+M2_WIFI_COLLECTOR
+
+NORMAL SCAN 1
+
+Request:
+REQ_000003
+
+startScan:
+True
+
+Broadcast:
+true
+
+Results Updated:
+true
+
+Result Count:
+12
+
+Completion:
+BROADCAST_RESULTS_UPDATED
+
+
+NORMAL SCAN 2
+
+Request:
+REQ_000004
+
+startScan:
+true
+
+Broadcast:
+true
+
+Results Updated:
+true
+
+Result Count:
+14
+
+Completion:
+BROADCAST_RESULTS_UPDATED
+
+
+NORMAL SCAN 3
+
+Request:
+REQ_000005
+
+startScan:
+true
+
+Broadcast:
+true
+
+Results Updated:
+true
+
+Result Count:
+8
+
+Completion:
+BROADCAST_RESULTS_UPDATED
+
+
+LOCATION DISABLED TEST
+
+startScan:
+null
+
+Broadcast:
+false
+
+Result Count:
+0
+
+Completion:
+LOCATION_DISABLED
+
+
+Privacy Check:
+
+Raw SSIDs committed:
+NO
+
+Raw BSSIDs committed:
+NO
+
+Freshness Engine:
+NOT IMPLEMENTED
+
+Risk Scoring:
+NOT IMPLEMENTED
