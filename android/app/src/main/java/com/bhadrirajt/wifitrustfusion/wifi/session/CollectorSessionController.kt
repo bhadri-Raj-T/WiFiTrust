@@ -1,4 +1,4 @@
-﻿package com.bhadrirajt.wifitrustfusion.wifi.session
+package com.bhadrirajt.wifitrustfusion.wifi.session
 
 import android.os.Handler
 import android.os.Looper
@@ -25,7 +25,7 @@ class CollectorSessionController(
 
         fun onSessionStopped(
             sessionId: String,
-            completedScanCount: Int,
+            completedRequestCount: Int,
             reason: String
         )
 
@@ -54,7 +54,7 @@ class CollectorSessionController(
         Long =
         DEFAULT_DEV_INTERVAL_MS
 
-    private var completedScanCount =
+    private var completedRequestCount =
         0
 
     private var nextScanScheduled =
@@ -120,7 +120,7 @@ class CollectorSessionController(
         nextScanScheduled =
             false
 
-        completedScanCount =
+        completedRequestCount =
             0
 
         requestedIntervalMs =
@@ -167,7 +167,7 @@ class CollectorSessionController(
             return
         }
 
-        completedScanCount += 1
+        completedRequestCount += 1
 
         scheduleNextScan()
     }
@@ -194,8 +194,8 @@ class CollectorSessionController(
         listener.onSessionStopped(
             sessionId =
                 sessionId,
-            completedScanCount =
-                completedScanCount,
+            completedRequestCount =
+                completedRequestCount,
             reason =
                 reason
         )
@@ -239,10 +239,10 @@ class CollectorSessionController(
         return currentSessionId
     }
 
-    fun getCompletedScanCount():
+    fun getCompletedRequestCount():
         Int {
 
-        return completedScanCount
+        return completedRequestCount
     }
 
     fun getIntervalMs():
@@ -315,6 +315,6 @@ class CollectorSessionController(
                 .take(4)
                 .uppercase()
 
-        return "${safeAlias}_M2DEV_${timestamp}_${random}"
+        return "${safeAlias}_${timestamp}_${random}"
     }
 }

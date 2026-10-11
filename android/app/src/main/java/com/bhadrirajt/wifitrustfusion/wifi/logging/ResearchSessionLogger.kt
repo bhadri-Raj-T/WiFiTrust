@@ -1,4 +1,4 @@
-﻿package com.bhadrirajt.wifitrustfusion.wifi.logging
+package com.bhadrirajt.wifitrustfusion.wifi.logging
 
 import android.content.Context
 import com.bhadrirajt.wifitrustfusion.wifi.model.CollectorEventRecord
@@ -268,7 +268,7 @@ class ResearchSessionLogger(
     @Synchronized
     fun markSessionComplete(
         stopReason: String,
-        completedScanCount: Int
+        completedRequestCount: Int
     ) {
 
         val directory =
@@ -300,7 +300,7 @@ class ResearchSessionLogger(
                     "session_id",
                     "ended_utc_iso",
                     "stop_reason",
-                    "completed_scan_count",
+                    "completed_request_count",
                     "clean_close"
                 )
             )
@@ -311,7 +311,7 @@ class ResearchSessionLogger(
                     sessionId,
                     Instant.now().toString(),
                     stopReason,
-                    completedScanCount,
+                    completedRequestCount,
                     true
                 )
             )

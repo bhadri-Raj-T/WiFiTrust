@@ -1,4 +1,4 @@
-﻿package com.bhadrirajt.wifitrustfusion
+package com.bhadrirajt.wifitrustfusion
 
 import android.content.Intent
 import android.os.Build
@@ -33,8 +33,7 @@ class MainActivity :
 
     companion object {
 
-        private const val DEVICE_ALIAS =
-            "J7"
+        private const val DEVICE_ALIAS = "DEV01"
     }
 
     private lateinit var permissionCoordinator:
@@ -511,8 +510,7 @@ class MainActivity :
                     requestedScanIntervalMs =
                         intervalMs,
 
-                    runLabel =
-                        "M2.7_DEV"
+                    runLabel = null
                 )
 
             try {
@@ -617,7 +615,7 @@ class MainActivity :
 
     override fun onSessionStopped(
         sessionId: String,
-        completedScanCount: Int,
+        completedRequestCount: Int,
         reason: String
     ) {
 
@@ -636,15 +634,15 @@ class MainActivity :
                         requestId =
                             null,
                         detail =
-                            "reason=$reason; completedScans=$completedScanCount"
+                            "reason=$reason; completedRequests=$completedRequestCount"
                     )
 
                     researchLogger
                         .markSessionComplete(
                             stopReason =
                                 reason,
-                            completedScanCount =
-                                completedScanCount
+                            completedRequestCount =
+                                completedRequestCount
                         )
 
                 } catch (
@@ -679,7 +677,7 @@ class MainActivity :
                     )
 
                     appendLine(
-                        "Completed scans: $completedScanCount"
+                        "Completed requests: $completedRequestCount"
                     )
 
                     appendLine(
@@ -1147,9 +1145,9 @@ class MainActivity :
                     )
 
                     appendLine(
-                        "Completed scans: ${
+                        "Completed requests: ${
                             sessionController
-                                .getCompletedScanCount()
+                                .getCompletedRequestCount()
                         }"
                     )
 
@@ -1429,4 +1427,3 @@ class MainActivity :
             1_000L
     }
 }
-
