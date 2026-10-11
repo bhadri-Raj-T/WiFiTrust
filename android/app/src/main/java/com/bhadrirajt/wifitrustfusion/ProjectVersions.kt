@@ -1,8 +1,8 @@
-package com.bhadrirajt.wifitrustfusion.core
+﻿package com.bhadrirajt.wifitrustfusion.core
 
 object ProjectVersions {
 
-    const val MILESTONE = "M2_WIFI_COLLECTOR"
+    const val MILESTONE = "M2_FRESHNESS_ENGINE"
 
     /*
      * These are development identifiers only.
@@ -20,3 +20,4 @@ object ProjectVersions {
     const val CROWD_VERSION = "NOT_IMPLEMENTED"
     const val FUSION_VERSION = "NOT_IMPLEMENTED"
 }
+

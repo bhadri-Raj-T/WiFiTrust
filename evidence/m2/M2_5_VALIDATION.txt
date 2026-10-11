@@ -1,0 +1,112 @@
+﻿WiFiTrustFusion M2.5 Freshness Validation
+
+Date:
+2026-10-11 14:40:14 +05:30
+
+Device:
+Samsung SM-J710F
+
+Android:
+8.1.0
+
+API:
+27
+
+Milestone:
+M2_FRESHNESS_ENGINE
+
+
+SCAN 1
+
+Request:
+REQ_000001
+
+Result Count:
+8
+
+FIRST_SEEN:
+8
+
+ADVANCED:
+0
+
+REPEATED:
+0
+
+REGRESSED:
+0
+
+UNTRACKABLE:
+0
+
+Seen After Request:
+8/8
+
+
+SCAN 2
+
+Request:
+REQ_000002
+
+Result Count:
+8
+
+FIRST_SEEN:
+1
+
+ADVANCED:
+7
+
+REPEATED:
+0
+
+REGRESSED:
+0
+
+UNTRACKABLE:
+0
+
+Seen After Request:
+8/8
+
+
+SCAN 3
+
+Request:
+REQ_000003
+
+Result Count:
+6
+
+FIRST_SEEN:
+0
+
+ADVANCED:
+6
+
+REPEATED:
+0
+
+REGRESSED:
+0
+
+UNTRACKABLE:
+0
+
+Seen After Request:
+6/6
+
+
+Privacy:
+
+Raw SSIDs committed:
+NO
+
+Raw BSSIDs committed:
+NO
+
+WFAI:
+NOT IMPLEMENTED
+
+Risk Scoring:
+NOT IMPLEMENTED

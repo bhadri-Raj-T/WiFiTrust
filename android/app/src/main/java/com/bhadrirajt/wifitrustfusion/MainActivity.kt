@@ -1,16 +1,22 @@
-package com.bhadrirajt.wifitrustfusion
-import com.bhadrirajt.wifitrustfusion.core.ProjectVersions
+﻿package com.bhadrirajt.wifitrustfusion
+
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import android.provider.Settings
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import com.bhadrirajt.wifitrustfusion.core.ProjectVersions
+import com.bhadrirajt.wifitrustfusion.wifi.freshness.WifiFreshnessEngine
+import com.bhadrirajt.wifitrustfusion.wifi.model.TimestampState
+import com.bhadrirajt.wifitrustfusion.wifi.model.WifiObservation
 import com.bhadrirajt.wifitrustfusion.wifi.permission.PermissionCoordinator
 import com.bhadrirajt.wifitrustfusion.wifi.scanner.WifiScanBatch
 import com.bhadrirajt.wifitrustfusion.wifi.scanner.WifiScanCollector
+import java.time.Instant
 import java.util.UUID
 
 class MainActivity :
@@ -18,29 +24,32 @@ class MainActivity :
     WifiScanCollector.Listener {
 
     private lateinit var permissionCoordinator:
-            PermissionCoordinator
+        PermissionCoordinator
 
     private lateinit var scanCollector:
-            WifiScanCollector
+        WifiScanCollector
+
+    private val freshnessEngine =
+        WifiFreshnessEngine()
 
     private lateinit var diagnosticText:
-            TextView
+        TextView
 
     private lateinit var scanStatusText:
-            TextView
+        TextView
 
     private lateinit var scanResultsText:
-            TextView
+        TextView
 
     private lateinit var runScanButton:
-            Button
+        Button
 
     private val developmentSessionId =
         "M2DEV_" +
-                UUID.randomUUID()
-                    .toString()
-                    .take(8)
-                    .uppercase()
+            UUID.randomUUID()
+                .toString()
+                .take(8)
+                .uppercase()
 
     private val locationPermissionLauncher =
         registerForActivityResult(
@@ -128,13 +137,17 @@ class MainActivity :
     override fun onResume() {
         super.onResume()
 
-        if (::permissionCoordinator.isInitialized) {
+        if (
+            ::permissionCoordinator.isInitialized
+        ) {
             renderDiagnostics()
         }
     }
 
     override fun onStop() {
-        if (::scanCollector.isInitialized) {
+        if (
+            ::scanCollector.isInitialized
+        ) {
             scanCollector.unregister()
         }
 
@@ -200,8 +213,27 @@ class MainActivity :
         batch: WifiScanBatch
     ) {
         runOnUiThread {
+
+            val analyzedObservations =
+                freshnessEngine.analyzeBatch(
+                    batch =
+                        batch,
+
+                    observedUtcIso =
+                        Instant.now()
+                            .toString(),
+
+                    observedElapsedUs =
+                        SystemClock
+                            .elapsedRealtimeNanos() /
+                            1_000L
+                )
+
             renderBatch(
-                batch
+                batch =
+                    batch,
+                observations =
+                    analyzedObservations
             )
 
             renderDiagnostics()
@@ -214,6 +246,7 @@ class MainActivity :
         message: String
     ) {
         runOnUiThread {
+
             scanStatusText.text =
                 "Collector status:\n$message"
 
@@ -222,16 +255,51 @@ class MainActivity :
     }
 
     private fun renderBatch(
-        batch: WifiScanBatch
+        batch: WifiScanBatch,
+        observations: List<WifiObservation>
     ) {
         val request =
             batch.request
 
+        val firstSeenCount =
+            observations.count {
+                it.timestampState ==
+                    TimestampState.FIRST_SEEN
+            }
+
+        val advancedCount =
+            observations.count {
+                it.timestampState ==
+                    TimestampState.ADVANCED
+            }
+
+        val repeatedCount =
+            observations.count {
+                it.timestampState ==
+                    TimestampState.REPEATED
+            }
+
+        val regressedCount =
+            observations.count {
+                it.timestampState ==
+                    TimestampState.REGRESSED
+            }
+
+        val untrackableCount =
+            observations.count {
+                it.timestampState ==
+                    TimestampState.UNTRACKABLE
+            }
+
+        val seenAfterRequestCount =
+            observations.count {
+                it.seenAfterRequest == true
+            }
+
         scanResultsText.text =
             buildString {
-                appendLine(
-                    "REQUEST"
-                )
+
+                appendLine("REQUEST")
 
                 appendLine(
                     "Session: ${request.sessionId}"
@@ -272,61 +340,94 @@ class MainActivity :
                 appendLine()
 
                 appendLine(
-                    "RAW OBSERVATIONS"
+                    "FRESHNESS SUMMARY"
+                )
+
+                appendLine(
+                    "FIRST_SEEN: $firstSeenCount"
+                )
+
+                appendLine(
+                    "ADVANCED: $advancedCount"
+                )
+
+                appendLine(
+                    "REPEATED: $repeatedCount"
+                )
+
+                appendLine(
+                    "REGRESSED: $regressedCount"
+                )
+
+                appendLine(
+                    "UNTRACKABLE: $untrackableCount"
+                )
+
+                appendLine(
+                    "Seen after request: $seenAfterRequestCount / ${observations.size}"
+                )
+
+                appendLine()
+
+                appendLine(
+                    "OBSERVATIONS"
                 )
 
                 if (
-                    batch.observations.isEmpty()
+                    observations.isEmpty()
                 ) {
                     appendLine(
                         "No observations assigned to this request."
                     )
                 }
 
-                batch.observations
+                observations
                     .sortedByDescending {
                         it.rssiDbm
                     }
-                    .take(10)
+                    .take(12)
                     .forEachIndexed {
                             index,
                             observation ->
 
                         appendLine()
+
                         appendLine(
                             "AP ${index + 1}"
                         )
 
                         appendLine(
-                            "SSID: ${
-                                observation.ssid
-                                    ?: "<hidden>"
+                            "RSSI: ${observation.rssiDbm} dBm"
+                        )
+
+                        appendLine(
+                            "Frequency: ${observation.frequencyMhz} MHz"
+                        )
+
+                        appendLine(
+                            "Channel: ${
+                                observation.channelNumber
+                                    ?: "unknown"
                             }"
                         )
 
                         appendLine(
-                            "BSSID: ${
-                                observation.bssid
-                                    ?: "<unknown>"
+                            "Timestamp state: ${observation.timestampState}"
+                        )
+
+                        appendLine(
+                            "Scan age: ${
+                                observation.scanAgeMs
+                                    ?.let { "$it ms" }
+                                    ?: "unknown"
                             }"
                         )
 
                         appendLine(
-                            "RSSI: ${
-                                observation.rssiDbm
-                            } dBm"
-                        )
-
-                        appendLine(
-                            "Frequency: ${
-                                observation.frequencyMhz
-                            } MHz"
-                        )
-
-                        appendLine(
-                            "Native timestamp: ${
-                                observation.scanTimestampUs
-                            } us"
+                            "Seen after request: ${
+                                observation.seenAfterRequest
+                                    ?: "unknown"
+                            }"
                         )
                     }
             }
@@ -337,7 +438,9 @@ class MainActivity :
             permissionCoordinator.snapshot()
 
         val wifiEnabled =
-            if (::scanCollector.isInitialized) {
+            if (
+                ::scanCollector.isInitialized
+            ) {
                 scanCollector.isWifiEnabled()
             } else {
                 false
@@ -345,73 +448,95 @@ class MainActivity :
 
         val ready =
             permission.readyForWifiCollection &&
-                    wifiEnabled
+                wifiEnabled
 
         diagnosticText.text =
             buildString {
-                appendLine(
-                    "PROJECT"
-                )
-                appendLine(
-                    "WiFiTrustFusion"
-                )
+
+                appendLine("PROJECT")
+                appendLine("WiFiTrustFusion")
                 appendLine()
 
                 appendLine(
                     "IMPLEMENTATION STATUS"
                 )
+
                 appendLine(
                     "Milestone: ${ProjectVersions.MILESTONE}"
                 )
+
                 appendLine(
                     "Collector: ${ProjectVersions.COLLECTOR_VERSION}"
                 )
+
                 appendLine(
                     "Protocol: ${ProjectVersions.PROTOCOL_VERSION}"
                 )
+
                 appendLine(
                     "Observation schema: ${ProjectVersions.OBS_SCHEMA_VERSION}"
                 )
+
                 appendLine()
 
                 appendLine(
                     "COLLECTOR PREREQUISITES"
                 )
+
                 appendLine(
                     "Fine location: ${permission.fineLocationGranted}"
                 )
+
                 appendLine(
                     "Coarse location: ${permission.coarseLocationGranted}"
                 )
+
                 appendLine(
                     "Location services: ${permission.locationServicesEnabled}"
                 )
+
                 appendLine(
                     "Wi-Fi enabled: $wifiEnabled"
                 )
+
                 appendLine(
                     "Ready: $ready"
                 )
+
                 appendLine()
 
                 appendLine(
-                    "M2.4 BOUNDARY"
+                    "M2.5 BOUNDARY"
                 )
+
                 appendLine(
                     "Single Wi-Fi scan: IMPLEMENTED"
                 )
+
                 appendLine(
                     "Raw observations: IMPLEMENTED"
                 )
+
                 appendLine(
-                    "Freshness analysis: NOT IMPLEMENTED"
+                    "Timestamp freshness: IMPLEMENTED"
                 )
+
+                appendLine(
+                    "Scan age: IMPLEMENTED"
+                )
+
+                appendLine(
+                    "seenAfterRequest: IMPLEMENTED"
+                )
+
                 appendLine(
                     "Repeated acquisition: NOT IMPLEMENTED"
                 )
+
                 appendLine(
                     "Persistent logging: NOT IMPLEMENTED"
                 )
+
                 appendLine(
                     "Risk scoring: NOT IMPLEMENTED"
                 )
@@ -421,7 +546,9 @@ class MainActivity :
     }
 
     private fun updateScanButton() {
-        if (!::runScanButton.isInitialized) {
+        if (
+            !::runScanButton.isInitialized
+        ) {
             return
         }
 
