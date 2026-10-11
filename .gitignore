@@ -1,0 +1,41 @@
+﻿# Android / Gradle
+.gradle/
+**/build/
+local.properties
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Android build artifacts
+*.apk
+*.aab
+
+# Secrets
+.env
+.env.*
+secrets.properties
+*.jks
+*.keystore
+google-services.json
+
+# Sensitive project data
+private_data/
+data/raw/
+data/raw_sensitive/
+**/raw_sensitive/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editor
+Thumbs.db
+Desktop.ini
+.vscode/
+
+# Logs
+*.log
