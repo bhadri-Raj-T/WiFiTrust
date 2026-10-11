@@ -1,0 +1,20 @@
+﻿WiFiTrustFusion M1 Device Environment
+Captured: 2026-10-11 11:40:38 +05:30
+
+Manufacturer:
+samsung
+
+Model:
+SM-J710F
+
+Device:
+j7xelte
+
+Android Release:
+8.1.0
+
+API Level:
+27
+
+Build Type:
+user

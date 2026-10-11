@@ -1,0 +1,85 @@
+﻿WiFiTrustFusion M1 Validation
+
+Milestone:
+M1 Clean Android Foundation
+
+Status:
+PASS
+
+Date:
+2026-10-11 11:50:42 +05:30
+
+Branch:
+dev-core
+
+Application:
+WiFiTrustFusion
+
+Package:
+com.bhadrirajt.wifitrustfusion
+
+Minimum API:
+27
+
+compileSdk:
+36
+
+targetSdk:
+36
+
+Test Device Manufacturer:
+samsung
+
+Test Device Model:
+SM-J710F
+
+Test Device:
+j7xelte
+
+Android:
+8.1.0
+
+Runtime API:
+27
+
+Build:
+PASS
+
+APK Installation:
+PASS
+
+Application Launch:
+PASS
+
+Wi-Fi Acquisition:
+NOT IMPLEMENTED
+
+Room Database:
+NOT IMPLEMENTED
+
+Statistical Engine:
+NOT IMPLEMENTED
+
+Technical Risk:
+NOT IMPLEMENTED
+
+Review Trust:
+NOT IMPLEMENTED
+
+Crowd Risk:
+NOT IMPLEMENTED
+
+Final Fusion:
+NOT IMPLEMENTED
+
+Collector:
+COLLECTOR_DEV
+
+Protocol:
+PROTOCOL_DEV
+
+Observation Schema:
+OBS_SCHEMA_DEV
+
+G1 Collector Freeze:
+NOT REQUESTED
