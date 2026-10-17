@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 
 <ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -33,7 +33,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="M2.7 PERSISTENT EVIDENCE&#10;&#10;Versioned session evidence is written to app-specific storage. Risk scoring is not active."
+            android:text="G1 COLLECTOR FREEZE&#10;&#10;COLLECTOR_V1 / PROTOCOL_V1 / OBS_SCHEMA_V1 frozen for D1 pilot."
             android:textStyle="bold" />
 
         <Button

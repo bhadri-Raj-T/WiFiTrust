@@ -1,0 +1,102 @@
+﻿WiFiTrustFusion DEV01 G1 Compatibility Validation
+
+Validation Result:
+PASS
+
+Candidate Source Commit:
+58e0b083e0b7ac69e80054fa79d40baa3adad894
+
+Candidate APK SHA-256:
+43010BB85AC1F2F1F9F6B63E67B9AB74DED5CAEC7A0BD1921ADC2BDCF0A729FC
+
+Device Alias:
+DEV01
+
+Manufacturer:
+Xiaomi
+
+Model:
+Redmi Note 8 Pro
+
+Codename:
+begoniain
+
+Android:
+9
+
+API:
+28
+
+Build Type:
+user
+
+ADB Installation:
+PASS
+
+MIUI Installation Note:
+Initial INSTALL_FAILED_USER_RESTRICTED occurred while device was locked.
+Installation succeeded after unlocking the device.
+
+Wi-Fi:
+PASS
+
+Location Services:
+PASS
+
+Location Permission:
+PASS
+
+Collector Ready:
+true
+
+Candidate Identifiers:
+G1_CANDIDATE = PASS
+COLLECTOR_V1_CANDIDATE = PASS
+PROTOCOL_V1_CANDIDATE = PASS
+OBS_SCHEMA_V1_CANDIDATE = PASS
+
+Validated Session:
+DEV01_20261017T102134Z_357A
+
+Completed Requests:
+3
+
+Stop Reason:
+USER_STOP
+
+Additional Request After Stop:
+NO
+
+Persistent Evidence:
+metadata.csv = PASS
+requests.csv = PASS
+observations.csv = PASS
+events.csv = PASS
+session_completion.csv = PASS
+
+Persisted Metadata:
+device_alias = DEV01
+collector_version = COLLECTOR_V1_CANDIDATE
+protocol_version = PROTOCOL_V1_CANDIDATE
+observation_schema_version = OBS_SCHEMA_V1_CANDIDATE
+
+Persisted Request Count:
+3
+
+Completion Count:
+3
+
+Clean Close:
+true
+
+Raw SSID/BSSID In Git:
+NO
+
+DEV01 G1 Persisted Session Validation:
+PASS
+
+DEV01 G1 Compatibility Smoke Test:
+PASS
+
+D1 Started:
+NO
